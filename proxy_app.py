@@ -10,9 +10,6 @@ CORS(app, resources={r"/chat": {"origins": "*"}})
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
-# ZMIANA 1: Używamy najnowszego, poprawnego modelu
-model = genai.GenerativeModel('gemini-1.5-flash-latest')
-
 SYSTEM_PROMPT = """Jesteś Asystentem AI na stronie informacyjnej firmy Omnipolis. Twoim zadaniem jest odpowiadanie na pytania dotyczące produktu Omnipolis AI. Jesteś uprzejmy, profesjonalny i pomocny.
 
 Oto kluczowe informacje o Omnipolis, na których musisz bazować:
@@ -28,22 +25,25 @@ Twoje zasady:
 - Nie wymyślaj funkcji, których nie ma na liście.
 """
 
+# === ZMIANA TUTAJ: Przekazujemy instrukcję systemową podczas tworzenia modelu ===
+model = genai.GenerativeModel(
+    'gemini-1.5-flash-latest',
+    system_instruction=SYSTEM_PROMPT
+)
+# =============================================================================
+
 @app.route('/chat', methods=['POST'])
 def chat():
     try:
         data = request.json
         question = data.get('question')
-        # ZMIANA 2: Odbieramy historię czatu z frontendu (na przyszłość)
         chat_history = data.get('chat_history', [])
 
         if not question:
             return jsonify({"error": "Brak pytania w zapytaniu."}), 400
         
-        # ZMIANA 3: Rozpoczynamy sesję czatu z modelem
-        chat_session = model.start_chat(
-            history=chat_history,
-            system_instruction=SYSTEM_PROMPT
-        )
+        # Rozpoczynamy sesję czatu, przekazując tylko historię
+        chat_session = model.start_chat(history=chat_history)
         
         response = chat_session.send_message(question)
         
